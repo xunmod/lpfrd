@@ -1,0 +1,10 @@
+service lpfrd /bin/lpfrd
+    user root
+    group root system
+    disabled
+
+on init
+    start lpfrd
+
+on property:sys.boot_completed=1
+    stop lpfrd
