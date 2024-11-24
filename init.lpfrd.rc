@@ -1,4 +1,4 @@
-service lpfrd /bin/lpfrd
+service lpfrd /sbin/lpfrd
     user root
     group root system
     disabled

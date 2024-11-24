@@ -113,6 +113,8 @@ int handle_inotify() //int *already_fd_numbers, int inotify_fd, struct pollfd *p
           if (strcmp(poll_fd_to_filename[i], event->name) == 0)
           {
             found = 1;
+            if (close(poll_fds[i].fd) == -1)
+              fprintf(stderr, "Cannot close fd %d (%s): %s\n", poll_fds[i].fd, event->name, strerror(errno));
             poll_fds[i].fd = -1;
             poll_fds[i].events = 0;
             poll_fds[i].revents = 0;
