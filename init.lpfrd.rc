@@ -1,6 +1,7 @@
 service lpfrd /sbin/lpfrd
     user root
-    group root system
+    group root
+    seclabel u:r:lpfrd:s0
     disabled
 
 on init

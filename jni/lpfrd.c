@@ -178,6 +178,7 @@ int main(int argc, char *argv[]) {
       already_fd_numbers++;
     }
   }
+  closedir(dir);
 
   while (poll(poll_fds, already_fd_numbers, -1) != -1) {
     // Handle inotify in last
