@@ -2,3 +2,9 @@
 libs/
 obj/
 compile_commands.json
+
+patch_boot/kernel*
+patch_boot/ramdisk.cpio
+patch_boot/new-boot.img
+patch_boot/magisk*
+patch_boot/lpfrd
