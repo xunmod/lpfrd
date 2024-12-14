@@ -8,59 +8,28 @@
 #include <string.h>
 #include <sys/inotify.h>
 #include <sys/poll.h>
+#include <sys/system_properties.h>
 #include <sys/time.h>
-#include <syslog.h>
 #include <unistd.h>
 
-// #define USE_SHELL_REBOOT
 #define INPUT_PATH "/dev/input/"
 #define MAX_DEVICES 256
 #define KEY KEY_POWER
 #define REBOOT_TARGET "recovery"
 #define TIMEOUT 2000
 
-#ifndef USE_SHELL_REBOOT
-#include <sys/system_properties.h>
-#endif
-
 // poll_fd_to_filename[0] is always NULL since it's inotify_fd
 char *poll_fd_to_filename[MAX_DEVICES];
 int already_fd_numbers = 1;
 int inotify_fd = -1;
 int dry_run = 0;
-int use_syslog = 0;
 struct pollfd poll_fds[MAX_DEVICES];
-
-/*
-void log_error(const char *fmt, ...) {
-  va_list args;
-  va_start(args, fmt);
-  if (use_syslog)
-    vsyslog(LOG_ERR, fmt, args);
-  else
-    vfprintf(stderr, fmt, args);
-  va_end(args);
-}*/
-
-#define log_error(fmt, ...)                                                    \
-  do {                                                                         \
-    if (use_syslog) {                                                          \
-      syslog(LOG_ERR, fmt, __VA_ARGS__);                                       \
-    } else {                                                                   \
-      fprintf(stderr, fmt "\n", __VA_ARGS__);                                  \
-    }                                                                          \
-  } while (0)
-#define perror_log(msg) log_error(msg ": %s", strerror(errno))
 
 void reboot(int signal) {
   if (dry_run) {
-    log_error("reboot triggered", NULL); // Weird workaround...
+    fprintf(stderr, "reboot triggered\n");
   } else {
-#ifdef USE_SHELL_REBOOT
-    system("reboot " REBOOT_TARGET);
-#else
     __system_property_set("sys.powerctl", "reboot," REBOOT_TARGET);
-#endif
   }
 }
 
@@ -74,7 +43,7 @@ int try_open_device(const char *device_name) {
           strlen(device_name) + 1);
   int new_fd = open(fullpath, O_RDONLY);
   if (new_fd < 0)
-    log_error("Cannot open %s: %s", fullpath, strerror(errno));
+    fprintf(stderr, "Cannot open %s: %s\n", fullpath, strerror(errno));
   return new_fd;
 }
 
@@ -94,7 +63,7 @@ int handle_inotify() {
   while (1) {
     size = read(inotify_fd, &event_buf, sizeof(event_buf));
     if (size == -1 && errno != EAGAIN) {
-      log_error("Cannot handle inotify: %s", strerror(errno));
+      perror("Cannot handle inotify");
       return 0;
     } else if (size <= 0) {
       return 1;
@@ -120,8 +89,8 @@ int handle_inotify() {
           if (strcmp(poll_fd_to_filename[i], event->name) == 0) {
             found = 1;
             if (close(poll_fds[i].fd) == -1)
-              log_error("Cannot close fd %d (%s): %s", poll_fds[i].fd,
-                        event->name, strerror(errno));
+              fprintf(stderr, "Cannot close fd %d (%s): %s\n", poll_fds[i].fd,
+                      event->name, strerror(errno));
             poll_fds[i].fd = -1;
             poll_fds[i].events = 0;
             poll_fds[i].revents = 0;
@@ -131,9 +100,10 @@ int handle_inotify() {
           }
         }
         if (!found)
-          log_error(
+          fprintf(
+              stderr,
               "Warning: No corresponding opened file was found for " INPUT_PATH
-              "%s",
+              "%s\n",
               event->name);
       }
     }
@@ -144,7 +114,7 @@ int handle_inotify() {
 int handle_input(int fd) {
   struct input_event event;
   if (read(fd, &event, sizeof(event)) != sizeof(event)) {
-    log_error("Cannot read event from %d: %s", fd, strerror(errno));
+    fprintf(stderr, "Cannot read event from %d: %s\n", fd, strerror(errno));
     return 0;
   }
   if (event.type == EV_KEY && event.code == KEY) {
@@ -158,35 +128,27 @@ int handle_input(int fd) {
       it_val.it_interval = it_val.it_value;
     }
     if (setitimer(ITIMER_REAL, &it_val, NULL) == -1)
-      perror_log("Cannot setitimer");
+      perror("Cannot setitimer");
   }
   return 1;
 }
 
 int main(int argc, char *argv[]) {
-  char stderr_link[11];
-  stderr_link[readlink("/proc/self/fd/2", stderr_link, 10)] = '\0';
-  if (strcmp(stderr_link, "/dev/null") == 0) {
-    use_syslog = 1;
-    openlog("lpfrd", LOG_CONS, LOG_USER);
-  }
-
   int ret = 1;
-  if (argc == 2 && strcmp(argv[1], "-d") == 0) {
+  if (argc == 2 && strcmp(argv[1], "-d") == 0)
     dry_run = 1;
-  } else if (argc != 1) {
-    log_error("Usage: %s [-d]", argv[0]);
+  else if (argc != 1) {
+    fprintf(stderr, "Usage: %s [-d]\n", argv[0]);
     return 1;
   }
-
   if (signal(SIGALRM, reboot) == SIG_ERR) {
-    perror_log("Cannot set SIGALRM handler");
+    perror("Cannot set SIGALRM handler");
     return 1;
   }
   inotify_fd = inotify_init1(IN_NONBLOCK);
   if (inotify_fd < 0 ||
       inotify_add_watch(inotify_fd, INPUT_PATH, IN_DELETE | IN_CREATE) < 0) {
-    perror_log("Cannot initialize inotify");
+    perror("Cannot initialize inotify");
     goto fail;
   }
   poll_fds[0].fd = inotify_fd;
@@ -196,7 +158,7 @@ int main(int argc, char *argv[]) {
   DIR *dir = opendir(INPUT_PATH);
   struct dirent *dirent;
   if (!dir) {
-    perror_log("Cannot opendir " INPUT_PATH);
+    perror("Cannot opendir " INPUT_PATH);
     goto fail;
   }
   while ((dirent = readdir(dir)) != NULL && already_fd_numbers <= MAX_DEVICES) {
@@ -219,14 +181,12 @@ int main(int argc, char *argv[]) {
       handle_inotify();
   }
   if (errno != EINTR)
-    perror_log("Polling stopped");
+    perror("Polling stopped");
   else
     ret = 0;
 fail:
   for (int i = 0; i < already_fd_numbers; i++)
     if (poll_fd_to_filename[i])
       free(poll_fd_to_filename[i]);
-  if (use_syslog)
-    closelog();
   return ret;
 }

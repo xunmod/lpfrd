@@ -13,8 +13,13 @@ Build using `ndk-build`, copy `libs/[your device's arch]/lpfrd` to `/sbin` in ra
 `KEY`: The key to be detected. You can find it out by `getevent -l`.  
 `REBOOT_TARGET`: Reboot to where. Value depends on vendor bootloader implementation, usually the same as the `[target]` part in `adb reboot [target]`.  
 `TIMEOUT`: Time of long press, in millisecond.  
-`USE_SHELL_REBOOT`: Use `reboot` command to reboot instead of `set_property`. Define it if it doesn't reboot to specified target.  
 Edit these in `jni/lpfrd.c`.
+
+## Debug
+If it's not working, try `setenforce 0 && start lpfrd` and long press to see if it works now.  
+If so, it's a selinux problem. Try this command to capture selinux denied log:  
+`while true; do dmesg | grep denied; sleep 0.5; done & start lpfrd`  
+You should see the denied log before or after long pressing.
 
 ## Todo
 Help me to perform memory safety check pls
