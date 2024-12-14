@@ -1,0 +1,1 @@
+/sbin/lpfrd u:object_r:lpfrd_exec:s0

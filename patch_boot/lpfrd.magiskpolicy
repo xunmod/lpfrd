@@ -1,0 +1,27 @@
+type lpfrd domain
+type lpfrd_exec exec_type
+typeattribute lpfrd_exec file_type
+
+allow init lpfrd_exec file { getattr open read execute }
+allow init lpfrd process transition
+allow lpfrd lpfrd_exec file { entrypoint open read execute getattr }
+allow lpfrd init process sigchld
+dontaudit init lpfrd process noatsecure
+allow init lpfrd process { siginh rlimitinh }
+type_transition init lpfrd_exec process lpfrd
+
+# Read /proc/self
+allow lpfrd lpfrd dir search
+allow lpfrd lpfrd lnk_file read
+
+# Read /dev/input(/*)
+allow lpfrd input_device dir { open read search }
+allow lpfrd input_device chr_file { open read }
+
+# Connect to syslog socket
+allow lpfrd lpfrd unix_dgram_socket { create connect write }
+
+# Set sys.powerctl property
+allow lpfrd powerctl_prop property_service set
+allow lpfrd property_socket sock_file write
+allow lpfrd init unix_stream_socket connectto

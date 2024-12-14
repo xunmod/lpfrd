@@ -1,9 +1,0 @@
-type lpfrd_exec, exec_type, file_type;
-type lpfrd, domain;
-
-init_daemon_domain(lpfrd)
-
-allow lpfrd powerctl_prop:property_service set;
-allow lpfrd input_device:dir { open read search };
-allow lpfrd input_device:file { open read };
-allow lpfrd input_device:chr_file { open read };

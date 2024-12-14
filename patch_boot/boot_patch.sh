@@ -14,7 +14,8 @@
 #                     (this file) The script will use files in its same
 #                                 directory to complete the patching process
 # init.lpfrd.rc         symlink   Symlink to ../init.lpfrd.rc
-# lpfrd.magiskpolicy.te text      magiskpolicy version of lpfrd.te
+# file_contexts         symlink   Symlink to ../sepolicy/file_contexts
+# lpfrd.magiskpolicy    text      magiskpolicy version of lpfrd.te
 # magiskboot            binary    A tool to manipulate boot images
 # magiskpolicy          binary    A tool to manipulate selinux policy
 # lpfrd                 binary    The lpfrd binary
@@ -89,16 +90,21 @@ esac
 
 echo "- Patching ramdisk"
 
-./magiskboot cpio ramdisk.cpio "extract init.rc init.rc"
-./magiskboot cpio ramdisk.cpio "extract sepolicy sepolicy"
-cat init.lpfrd.rc >> init.rc
-./magiskpolicy --load sepolicy --save sepolicy --apply lpfrd.magiskpolicy.te
+./magiskboot cpio ramdisk.cpio "extract init.rc r_init.rc"
+./magiskboot cpio ramdisk.cpio "extract sepolicy r_sepolicy"
+./magiskboot cpio ramdisk.cpio "extract file_contexts r_file_contexts"
+echo >> r_init.rc
+cat init.lpfrd.rc >> r_init.rc
+echo >> r_file_contexts
+cat file_contexts >> r_file_contexts
+./magiskpolicy --load r_sepolicy --save r_sepolicy --apply lpfrd.magiskpolicy
 ./magiskboot cpio ramdisk.cpio \
-"add 0750 init.rc init.rc" \
-"add 0644 sepolicy sepolicy" \
+"add 0750 init.rc r_init.rc" \
+"add 0644 sepolicy r_sepolicy" \
+"add 0644 file_contexts r_file_contexts" \
 "add 0750 sbin/lpfrd lpfrd"
 
-rm -f init.rc sepolicy
+rm -f r_init.rc r_sepolicy r_file_contexts
 
 #################
 # Repack

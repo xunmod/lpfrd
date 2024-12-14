@@ -1,0 +1,19 @@
+type lpfrd, domain;
+type lpfrd_exec, exec_type, file_type;
+
+domain_auto_trans(init, lpfrd_exec, lpfrd)
+
+# Read /proc/self
+allow lpfrd self:dir search;
+allow lpfrd self:lnk_file read;
+
+# Read /dev/input(/*)
+allow lpfrd input_device:dir { open read search };
+allow lpfrd input_device:chr_file { open read };
+
+# Connect to syslog socket
+allow lpfrd lpfrd unix_dgram_socket { create connect write };
+
+# Set sys.powerctl property
+allow lpfrd powerctl_prop:property_service set;
+unix_socket_connect(lpfrd, property, init)
